@@ -1,68 +1,47 @@
 let Vue
-class ZRouter {
-    constructor(option) {
-        this.$option = option
-        this.routeMap = {}
-        this.app = new Vue({
-            data: {
-                current: "/test"
-            }
-        })
+class ZVueRouter {
+    constructor(options) {
+        this.$options = options
+        this.state = Vue.observable({ current: "/" })
+        window.addEventListener("hashchange", this.hashChange.bind(this))
+        window.addEventListener("load", this.hashChange.bind(this))
     }
-    init() {
-        this.initEvent()
-        this.initRouterMap()
-        this.initComponent()
-    }
-    initEvent() {
-        window.addEventListener("hashchange", this.handleChange)
-        window.addEventListener("load", this.handleChange)
-    }
-    handleChange() {
-        this.app.current = location.hash.slice(1) || "/"
-    }
-    initRouterMap() {
-        this.$option.routes.forEach(item => {
-            this.routeMap[item.path] = item.component
-        })
-    }
-    initComponent() {
-        Vue.component("router-link", {
-            props: {
-                to: {
-                    type: String,
-                    default: () => {
-                        return ""
-                    }
-                }
-            },
-            render() {
-                return (
-                    <a href={"#"+this.to}>{this.$slots.default}</a>
-                )
-            }
-        })
-        Vue.component("router-view", {
-            render: (h) => {
-                console.log("render",this.routeMap[this.app.current])
-                return (
-                <div>{this.app.current}</div>
-                 
-                )
-            }
-        })
-
+    hashChange() {
+        let url = window.location.hash.slice(1)
+        this.state.current = url
     }
 }
-ZRouter.install = function (_Vue) {
+
+ZVueRouter.install = (_Vue) => {
     Vue = _Vue
     Vue.mixin({
-        beforeCreate() {
+        beforeCreate: function () {
             if (this.$options.router) {
                 Vue.prototype.$router = this.$options.router
-                this.$options.router.init()
             }
         }
     })
+    Vue.component("router-link", {
+        props: {
+            to: {
+                type: String,
+                required: true,
+                default: () => {
+                    return ""
+                }
+            }
+        },
+        render(h) {
+            return h("a", { attrs: { href: "#" + this.to } }, this.$slots.default)
+        }
+    })
+    Vue.component("router-view", {
+        render(h) {
+            let currentComponent = this.$router.$options.routes.filter(route => {
+                return route.path == this.$router.state.current
+            })
+            return h(currentComponent[0].component)
+        }
+    })
 }
-export default ZRouter
+export default ZVueRouter
